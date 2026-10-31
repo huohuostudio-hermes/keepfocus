@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Keep Focus">
+<meta name="theme-color" content="#000000">
+<title>Keep Focus</title>
+<style>
+:root{
+  --accent:#d9c9a3;
+  --line:#ab9a6e;
+  --border:#5a4d2e;
+  --text:#e8dcc0;
+  --muted:#8a7a55;
+  --red:#f87171;
+  --green:#4ade80;
+  --amber:#fbbf24;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+html,body{height:100%;}
+body{
+  background:#000;
+  color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Helvetica Neue",sans-serif;
+  padding:0 16px calc(20px + env(safe-area-inset-bottom));
+  max-width:480px;
+  margin:0 auto;
+  -webkit-user-select:none;user-select:none;
+}
+header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:14px 0 10px;
+  border-bottom:1px solid var(--line);
+  box-shadow:0 1px 0 rgba(217,201,163,.35);
+  position:sticky;top:0;background:#000;z-index:10;
+}
+header .logo{
+  font-size:15px;letter-spacing:1px;color:var(--accent);
+  text-shadow:0 0 12px rgba(217,201,163,.6);
+  font-weight:600;
+}
+header .day{font-size:12px;color:var(--muted);}
+.work-status{
+  margin-top:16px;display:flex;align-items:center;gap:8px;
+}
+.work-pill{
+  display:inline-flex;align-items:center;gap:6px;
+  padding:6px 12px;border-radius:999px;font-size:13px;
+  border:1px solid var(--border);
+}
+.work-pill.on{color:var(--red);border-color:rgba(248,113,113,.4);box-shadow:0 0 14px rgba(239,68,68,.25);}
+.work-pill.off{color:var(--muted);}
+.clock{
+  margin-top:14px;text-align:center;
+}
+.clock .time{
+  font-size:64px;font-weight:700;letter-spacing:2px;
+  font-variant-numeric:tabular-nums;
+  color:var(--text);
+  text-shadow:0 0 24px rgba(217,201,163,.35);
+  line-height:1;
+}
+.clock .label{font-size:12px;color:var(--muted);margin-top:6px;letter-spacing:2px;}
+.stats{
+  margin-top:20px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;
+}
+.stat{
+  background:rgba(228,235,244,.04);
+  border:1px solid var(--border);
+  border-radius:12px;padding:12px 8px;text-align:center;
+}
+.stat .k{font-size:11px;color:var(--muted);letter-spacing:1px;}
+.stat .v{font-size:17px;font-weight:600;margin-top:6px;font-variant-numeric:tabular-nums;}
+.stat.focus .v{color:var(--amber);}
+.stat.spent .v{color:var(--accent);}
+.stat.rest .v{color:var(--green);}
+.streak{
+  margin-top:16px;display:flex;align-items:center;gap:12px;
+  background:rgba(228,235,244,.04);
+  border:1px solid var(--border);border-radius:14px;padding:14px;
+}
+.streak .flame{font-size:34px;line-height:1;}
+.streak .info{flex:1;}
+.streak .lv{font-size:16px;font-weight:700;color:var(--accent);letter-spacing:1px;}
+.streak .sub{font-size:12px;color:var(--muted);margin-top:3px;}
+.habits{margin-top:16px;}
+.habits h3{
+  font-size:12px;color:var(--muted);letter-spacing:2px;
+  padding-bottom:8px;border-bottom:1px solid var(--border);
+}
+.habit{
+  display:flex;align-items:center;gap:10px;
+  padding:12px 0;border-bottom:1px solid rgba(90,77,46,.5);
+}
+.habit:last-child{border-bottom:none;}
+.habit .box{
+  width:22px;height:22px;border-radius:6px;flex-shrink:0;
+  border:1px solid var(--line);display:flex;align-items:center;justify-content:center;
+  font-size:13px;
+}
+.habit.done .box{background:var(--green);border-color:var(--green);color:#000;}
+.habit.done .txt{color:var(--muted);text-decoration:line-through;}
+.habit .txt{font-size:14px;line-height:1.4;}
+.foot{
+  margin-top:20px;text-align:center;font-size:11px;color:var(--muted);
+}
+.foot .refresh{color:var(--accent);}
+.err{
+  text-align:center;margin-top:40px;color:var(--red);font-size:13px;line-height:1.6;
+  padding:0 20px;
+}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">KEEP FOCUS</div>
+  <div class="day" id="day">—</div>
+</header>
+
+<div id="main">
+  <div class="work-status">
+    <span class="work-pill" id="pill">…</span>
+  </div>
+  <div class="clock">
+    <div class="time" id="time">--:--:--</div>
+    <div class="label" id="clock-label">—</div>
+  </div>
+  <div class="stats">
+    <div class="stat focus"><div class="k">今日专注</div><div class="v" id="s-focus">—</div></div>
+    <div class="stat spent"><div class="k">今日投入</div><div class="v" id="s-spent">—</div></div>
+    <div class="stat rest"><div class="k">今日休息</div><div class="v" id="s-rest">—</div></div>
+  </div>
+  <div class="streak">
+    <div class="flame">🔥</div>
+    <div class="info">
+      <div class="lv" id="s-lv">Lv.—</div>
+      <div class="sub" id="s-streak">—</div>
+    </div>
+  </div>
+  <div class="habits">
+    <h3>微习惯</h3>
+    <div id="habits"></div>
+  </div>
+</div>
+
+<div class="foot">数据与你电脑上的 Keep Focus 同步 · <span class="refresh" id="refresh">—</span></div>
+
+<script>
+var URL_BASE = 'https://1472098100-1etvkvpo8t.ap-guangzhou.tencentscf.com';
+var KEY = 'f72bba848710ead5747cf03d2d9cda17';
+var data = null;
+
+function $(id){ return document.getElementById(id); }
+
+function pad(n){ return (n<10?'0':'')+n; }
+function fmtClock(sec){
+  sec = Math.max(0, Math.floor(sec));
+  var h = Math.floor(sec/3600), m = Math.floor((sec%3600)/60), s = sec%60;
+  return pad(h)+':'+pad(m)+':'+pad(s);
+}
+function fmtDur(sec){
+  sec = Math.max(0, Math.floor(sec));
+  var h = Math.floor(sec/3600), m = Math.floor((sec%3600)/60);
+  if (h>0) return h+'h '+m+'m';
+  if (m>0) return m+'分';
+  return sec+'秒';
+}
+// 火花等级：days 阶梯 1/3/7/14/21/30/45/66/100/180
+var SPARK_DAYS = [1,3,7,14,21,30,45,66,100,180];
+function levelByStreak(streak){
+  var lv = 0;
+  for (var i=0;i<SPARK_DAYS.length;i++){ if (streak >= SPARK_DAYS[i]) lv = i+1; }
+  return lv;
+}
+
+function workNowSec(){
+  if (!data) return 0;
+  var base = data.work_sec || 0;
+  if (data.work_active && data.work_live_start){
+    base += Math.max(0, Math.floor(Date.now()/1000) - data.work_live_start);
+  }
+  return base;
+}
+
+function render(){
+  if (!data) return;
+  var nowWork = workNowSec();
+  var spent = data.spent_total || 0;
+  var rest = Math.max(0, nowWork - spent);
+
+  $('day').textContent = (data.date||'') + ' ' + (data.weekday||'');
+
+  var pill = $('pill');
+  if (data.work_active){
+    pill.textContent = '🔥 上班中';
+    pill.className = 'work-pill on';
+    $('clock-label').textContent = '正在计时';
+  } else {
+    pill.textContent = '已下班';
+    pill.className = 'work-pill off';
+    $('clock-label').textContent = '今日工作时长';
+  }
+  $('time').textContent = fmtClock(nowWork);
+
+  $('s-focus').textContent = fmtDur(data.focus_total || 0);
+  $('s-spent').textContent = fmtDur(spent);
+  $('s-rest').textContent = fmtDur(rest);
+
+  var streak = data.habit_streak || {};
+  var cur = streak.streak || 0;
+  var best = streak.best || 0;
+  var lv = levelByStreak(cur);
+  $('s-lv').textContent = 'Lv.' + lv + ' · 连续 ' + cur + ' 天';
+  $('s-streak').textContent = '历史最长 ' + best + ' 天 · 累计 ' + (streak.total||0) + ' 天';
+
+  var hh = $('habits');
+  hh.innerHTML = '';
+  var habits = data.habits || [];
+  if (!habits.length){ hh.innerHTML = '<div class="habit"><div class="txt">（暂无微习惯）</div></div>'; }
+  habits.forEach(function(h){
+    var d = document.createElement('div');
+    d.className = 'habit' + (h.done ? ' done' : '');
+    d.innerHTML = '<div class="box">' + (h.done ? '✓' : '') + '</div><div class="txt"></div>';
+    d.querySelector('.txt').textContent = h.text;
+    hh.appendChild(d);
+  });
+}
+
+function tick(){
+  if (data) render();
+  // 时间戳重算，锁屏回来也准
+}
+
+function load(){
+  fetch(URL_BASE + '/state', {
+    headers: { 'Authorization': 'Bearer ' + KEY }
+  }).then(function(r){
+    if (!r.ok) throw new Error('HTTP '+r.status);
+    return r.json();
+  }).then(function(d){
+    data = d;
+    render();
+    var t = new Date();
+    $('refresh').textContent = '更新于 ' + pad(t.getHours())+':'+pad(t.getMinutes());
+  }).catch(function(e){
+    document.getElementById('main').innerHTML = '<div class="err">连不上云端（'+ (e.message||'') +'）<br>检查网络后下拉刷新</div>';
+  });
+}
+
+load();
+setInterval(tick, 1000);
+setInterval(load, 30000); // 30 秒拉一次最新数据
+</script>
+</body>
+</html>
