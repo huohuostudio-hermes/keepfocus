@@ -602,10 +602,12 @@
 
   /* ===== 移动端适配（触屏无 hover）===== */
   html, body { touch-action: pan-x pan-y; }
-  body { background: #000; -webkit-tap-highlight-color: transparent; }
+  body { background: #000; -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
   .card { height: 100vh; height: 100dvh; }
-  .topbar { padding-top: env(safe-area-inset-top); height: auto; min-height: 44px; }
-  .footer { padding-bottom: env(safe-area-inset-bottom); }
+  .topbar { padding-top: constant(safe-area-inset-top); padding-top: env(safe-area-inset-top); height: auto; min-height: 44px; }
+  .footer { padding-bottom: constant(safe-area-inset-bottom); padding-bottom: env(safe-area-inset-bottom); }
+  .list, .mm-wrap, .dtable-wrap { -webkit-overflow-scrolling: touch; }
+  input.inp, textarea, .inline-input, #modal-min, #inp { user-select: text; -webkit-user-select: text; }
   .item .bolt, .item .do-btn, .item .timer-btn, .item .review-toggle,
   .item .del-btn, .item .sub-btn, .item .attach-btn,
   .item .audio-dur.hover, .item .audio-durs { opacity: 1 !important; }
@@ -4359,6 +4361,26 @@ loadData();
   refreshState();
 </script>
 <script>
+/* 动态岛/刘海安全区兜底：env 返回 0 时按刘海机型手动补 */
+(function() {
+  function applySafeTop() {
+    var tb = document.querySelector('.topbar');
+    if (!tb) return;
+    var sa = 0;
+    var probe = document.createElement('div');
+    probe.style.cssText = 'position:fixed;top:0;left:0;height:env(safe-area-inset-top,0px);pointer-events:none;';
+    document.body.appendChild(probe);
+    sa = Math.round(probe.getBoundingClientRect().height);
+    probe.remove();
+    if (sa <= 0 && /iPhone/.test(navigator.userAgent) && (screen.height / screen.width) > 2.0) {
+      sa = 47;
+    }
+    if (sa > 0) tb.style.paddingTop = sa + 'px';
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', applySafeTop);
+  else applySafeTop();
+})();
+
 document.addEventListener('touchmove', function(e) {
   if (e.touches.length > 1) {
     var t = e.target;
@@ -4407,6 +4429,56 @@ document.addEventListener('touchmove', function(e) {
   }, { passive: false });
   wrap.addEventListener('touchend', function() { st.n = 0; });
   wrap.addEventListener('touchcancel', function() { st.n = 0; });
+})();
+
+/* 长按任务/想法/随手记行 → 弹出操作菜单（编辑/复制/附件/删除） */
+(function() {
+  var lpTimer = null, lpX = 0, lpY = 0, lpItem = null;
+  function clearLp() { if (lpTimer) { clearTimeout(lpTimer); lpTimer = null; } }
+  document.addEventListener('touchstart', function(e) {
+    var t = e.touches[0];
+    var el = t.target;
+    var item = el.closest ? el.closest('.item') : null;
+    if (item && el.closest && el.closest('.do-btn,.timer-btn,.del-btn,.sub-btn,.review-toggle,.attach-btn,.bolt,.cb,.arrow,.lnk,.audio-play,.audio-x')) item = null;
+    if (!item) { clearLp(); return; }
+    lpItem = item; lpX = t.clientX; lpY = t.clientY;
+    lpTimer = setTimeout(function() {
+      lpTimer = null;
+      var a = item.dataset.anchor;
+      if (!a) return;
+      var i1 = a.indexOf(''), i2 = a.indexOf('', i1 + 1);
+      if (i1 < 0 || i2 < 0) return;
+      var kind = a.slice(0, i1), key = a.slice(i1 + 1, i2), text = a.slice(i2 + 1);
+      showCtxMenu(lpX, lpY, kind, text, key);
+      if (typeof ctxMenu !== 'undefined' && ctxMenu) {
+        var eb = document.createElement('button');
+        eb.className = 'ctx-item';
+        eb.textContent = '✏️ 编辑';
+        eb.onmousedown = function() {
+          hideCtxMenu();
+          var txt = item.querySelector('.txt');
+          if (txt) startEdit({ text: text }, kind, txt, key);
+        };
+        ctxMenu.appendChild(eb);
+        var db = document.createElement('button');
+        db.className = 'ctx-item';
+        db.textContent = '🗑 删除';
+        db.onmousedown = function() {
+          hideCtxMenu();
+          post('delete_entry', { target: kind, text: text, key: key });
+        };
+        ctxMenu.appendChild(db);
+      }
+    }, 500);
+  }, { passive: true });
+  document.addEventListener('touchmove', function(e) {
+    if (lpTimer && e.touches.length === 1) {
+      var t = e.touches[0];
+      if (Math.abs(t.clientX - lpX) > 10 || Math.abs(t.clientY - lpY) > 10) clearLp();
+    }
+  }, { passive: true });
+  document.addEventListener('touchend', clearLp, { passive: true });
+  document.addEventListener('touchcancel', clearLp, { passive: true });
 })();
 
 if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
