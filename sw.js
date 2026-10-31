@@ -1,4 +1,4 @@
-var CACHE = 'keepfocus-v1';
+var CACHE = 'keepfocus-v2';
 self.addEventListener('install', function(e){
   e.waitUntil(
     caches.open(CACHE).then(function(c){
