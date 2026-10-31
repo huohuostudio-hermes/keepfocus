@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -601,6 +601,7 @@
   .dtable tr.done td.tx { text-decoration: line-through; }
 
   /* ===== 移动端适配（触屏无 hover）===== */
+  html, body { touch-action: pan-x pan-y; }
   body { background: #000; -webkit-tap-highlight-color: transparent; }
   .card { height: 100vh; height: 100dvh; }
   .topbar { padding-top: env(safe-area-inset-top); height: auto; min-height: 44px; }
@@ -612,6 +613,7 @@
   .icon-btn:active, .do-btn:active, .timer-btn:active, .del-btn:active,
   .sub-btn:active, .review-toggle:active, .attach-btn:active, .bolt:active,
   .action-btn:active { background: rgba(228,235,244,0.12); }
+  #mm-wrap { touch-action: none; }
 </style>
 </head>
 <body>
@@ -4356,6 +4358,60 @@ loadData();
 
   refreshState();
 </script>
-<script>if('serviceWorker' in navigator && location.protocol.startsWith('http')){navigator.serviceWorker.register('sw.js');}</script>
+<script>
+document.addEventListener('touchmove', function(e) {
+  if (e.touches.length > 1) {
+    var t = e.target;
+    var inMap = t && t.closest && t.closest('#mm-wrap');
+    if (!inMap) e.preventDefault();
+  }
+}, { passive: false });
+
+(function() {
+  var wrap = document.getElementById('mm-wrap');
+  if (!wrap) return;
+  var MIN_S = 0.15, MAX_S = 2.5;
+  var st = { n: 0, d0: 0, s0: 1, lx: 0, ly: 0 };
+  function tdist(t) {
+    var dx = t.touches[0].clientX - t.touches[1].clientX;
+    var dy = t.touches[0].clientY - t.touches[1].clientY;
+    return Math.sqrt(dx * dx + dy * dy);
+  }
+  wrap.addEventListener('touchstart', function(e) {
+    if (e.touches.length === 2) { st.n = 2; st.d0 = tdist(e); st.s0 = mmPan.s; }
+    else if (e.touches.length === 1) { st.n = 1; st.lx = e.touches[0].clientX; st.ly = e.touches[0].clientY; }
+  }, { passive: false });
+  wrap.addEventListener('touchmove', function(e) {
+    var z = (typeof bodyZoom !== 'undefined' ? bodyZoom : 1) || 1;
+    if (e.touches.length === 2 && st.n === 2) {
+      e.preventDefault();
+      var d = tdist(e);
+      if (st.d0 > 0 && d > 0) {
+        var ns = Math.max(MIN_S, Math.min(MAX_S, st.s0 * d / st.d0));
+        var cx = (e.touches[0].clientX + e.touches[1].clientX) / 2 / z;
+        var cy = (e.touches[0].clientY + e.touches[1].clientY) / 2 / z;
+        var px = (cx - mmPan.tx) / mmPan.s;
+        var py = (cy - mmPan.ty) / mmPan.s;
+        mmPan.s = ns;
+        mmPan.tx = cx - px * ns;
+        mmPan.ty = cy - py * ns;
+        applyTransform();
+      }
+    } else if (e.touches.length === 1 && st.n === 1) {
+      var x = e.touches[0].clientX, y = e.touches[0].clientY;
+      mmPan.tx += (x - st.lx) / z;
+      mmPan.ty += (y - st.ly) / z;
+      st.lx = x; st.ly = y;
+      applyTransform();
+    }
+  }, { passive: false });
+  wrap.addEventListener('touchend', function() { st.n = 0; });
+  wrap.addEventListener('touchcancel', function() { st.n = 0; });
+})();
+
+if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+  navigator.serviceWorker.register('sw.js');
+}
+</script>
 </body>
 </html>
